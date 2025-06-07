@@ -5,6 +5,7 @@ import (
 	"log"
 	"slices"
 	"time"
+	"os"
 
 	"github.com/diamondburned/arikawa/v3/state"
 	"github.com/diamondburned/arikawa/v3/discord"
@@ -19,6 +20,7 @@ const (
 
 func main() {
 	token := flag.String("token", "", "Discord Token")
+	last := flag.Int64("last", 0, "Delete everything until this message")
 	chunks := flag.Int("chunks", 4, "Distribute message deletion in chunks")
 	wait := flag.Int64("wait", 4, "Duration in seconds to wait after completing a chunk")
 	dryRun := flag.Bool("dryrun", false, "Operate in dry run mode")
@@ -42,6 +44,7 @@ func main() {
 
 	before := discord.MessageID(0)
 	channelID := discord.ChannelID(*channel)
+	lastID := discord.MessageID(*last)
 
 	for {
 		msgs, err := s.MessagesBefore(channelID, before, maxMessageFetchLimit)
@@ -57,6 +60,11 @@ func main() {
 			for _, msg := range chunk {
 				log.Println("Deleting", msg.ID)
 				deleting := time.Now()
+
+				if msg.ID == lastID {
+					log.Println("Reached target message", msg.ID)
+					os.Exit(0)
+				}
 
 				if !*dryRun {
 					if err := s.DeleteMessage(channelID, msg.ID, ""); err != nil {
